@@ -4,7 +4,11 @@
   "description": "LLM-agnostic agent skills for Lista Lending — daily DeFi workflows on BSC",
   "keywords": ["lista", "lending", "defi", "bnb", "moolah", "claude", "codex", "gemini", "openclaw", "agents"],
   "license": "MIT",
+  "bin": {
+    "lista-skills": "./bin/install.js"
+  },
   "files": [
+    "bin",
     ".agents",
     ".claude/commands",
     ".codex",

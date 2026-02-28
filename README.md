@@ -33,26 +33,29 @@ Skills live in `.agents/` and are shared across all supported AI coding tools vi
 
 ## Installation
 
+### Via npx (recommended)
+```bash
+npx @lista-dao/lending-skills
+```
+
+Installs all skills to the global commands directory of each detected LLM tool:
+- Claude Code → `~/.claude/commands/`
+- Codex → `~/.codex/`
+- Gemini → `~/.gemini/`
+
 ### Via openclaw
 ```bash
 openclaw install @lista-dao/lending-skills
 ```
 
-### Manual — Claude Code
+### Manual
 ```bash
+# Claude Code
 cp .agents/*.md ~/.claude/commands/
-```
 
-### Manual — any LLM
-```bash
-# Copy to your LLM's commands directory
+# Codex / Gemini
 cp .agents/*.md ~/.codex/
 cp .agents/*.md ~/.gemini/
-
-# Or symlink the whole skills directory (project-level)
-ln -s "$(pwd)/.agents" .claude/commands
-ln -s "$(pwd)/.agents" .codex
-ln -s "$(pwd)/.agents" .gemini
 ```
 
 ## Usage Examples
