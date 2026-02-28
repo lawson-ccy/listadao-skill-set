@@ -1,0 +1,1 @@
+../../.agents/lista-vault-builder/SKILL.md

@@ -1,0 +1,1 @@
+../../.agents/lista-risk/SKILL.md

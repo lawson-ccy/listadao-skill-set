@@ -1,0 +1,1 @@
+../../.agents/lista-loop/SKILL.md
