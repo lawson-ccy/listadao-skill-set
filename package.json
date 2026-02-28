@@ -1,11 +1,14 @@
 {
   "name": "@lista-dao/lending-skills",
   "version": "1.0.0",
-  "description": "Claude Code agent skills for Lista Lending — daily DeFi workflows on BSC",
-  "keywords": ["lista", "lending", "defi", "bnb", "moolah", "claude", "openclaw"],
+  "description": "LLM-agnostic agent skills for Lista Lending — daily DeFi workflows on BSC",
+  "keywords": ["lista", "lending", "defi", "bnb", "moolah", "claude", "codex", "gemini", "openclaw", "agents"],
   "license": "MIT",
   "files": [
+    ".agents",
     ".claude/commands",
+    ".codex",
+    ".gemini",
     "openclaw.json",
     "docs"
   ]

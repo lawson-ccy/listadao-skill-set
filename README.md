@@ -1,8 +1,8 @@
 # Lista Lending Agent Skills
 
-Claude Code agent skills for [Lista Lending](https://lista.org/lending) — daily DeFi workflows on BSC, powered by live on-chain data.
+LLM-agnostic agent skills for [Lista Lending](https://lista.org/lending) — daily DeFi workflows on BSC, powered by live on-chain data.
 
-Install via openclaw and use these slash commands in any Claude Code session.
+Skills live in `.agents/` and are shared across all supported AI coding tools via symlinks.
 
 ## Skills
 
@@ -15,14 +15,44 @@ Install via openclaw and use these slash commands in any Claude Code session.
 | `/lista-risk [wallet]` | Protocol-wide risk monitor: near-liquidation, oracle health |
 | `/lista-vault-builder [token] [risk]` | Build a custom MoolahVault strategy with market queue recommendations |
 
+## Repository Structure
+
+```
+.agents/               # Canonical skill files (LLM-agnostic)
+├── lista-health.md
+├── lista-loop.md
+├── lista-market.md
+├── lista-risk.md
+├── lista-vault-builder.md
+└── lista-yield.md
+
+.claude/commands       → symlink → ../.agents   (Claude Code)
+.codex                 → symlink → .agents       (OpenAI Codex)
+.gemini                → symlink → .agents       (Google Gemini)
+```
+
 ## Installation
 
+### Via openclaw
 ```bash
-# Via openclaw (once published)
 openclaw install @lista-dao/lending-skills
+```
 
-# Manual installation — copy commands to your Claude Code config
-cp .claude/commands/*.md ~/.claude/commands/
+### Manual — Claude Code
+```bash
+cp .agents/*.md ~/.claude/commands/
+```
+
+### Manual — any LLM
+```bash
+# Copy to your LLM's commands directory
+cp .agents/*.md ~/.codex/
+cp .agents/*.md ~/.gemini/
+
+# Or symlink the whole skills directory (project-level)
+ln -s "$(pwd)/.agents" .claude/commands
+ln -s "$(pwd)/.agents" .codex
+ln -s "$(pwd)/.agents" .gemini
 ```
 
 ## Usage Examples
@@ -42,12 +72,13 @@ cp .claude/commands/*.md ~/.claude/commands/
 
 ## How It Works
 
-Each skill is a markdown prompt file that instructs Claude to:
+Each skill is a plain markdown prompt file. Any LLM tool that loads markdown slash commands from a directory can use these skills directly.
+
 1. Call the **Lista REST API** (`https://api.lista.org/api/moolah`) for vault and market data
 2. Call the **BSC RPC** (`https://bsc-dataseed.bnbchain.org`) for user-specific on-chain position data
 3. Perform calculations and format results into a clean report
 
-No backend infrastructure required — skills work out of the box using Claude's Bash tool.
+No backend infrastructure required — skills work out of the box using the LLM's Bash/shell tool.
 
 ## Data Sources
 

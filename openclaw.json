@@ -1,7 +1,8 @@
 {
   "name": "@lista-dao/lending-skills",
-  "version": "1.0.0",
-  "description": "Claude Code agent skills for Lista Lending — daily DeFi workflows on BSC",
+  "version": "1.1.0",
+  "description": "LLM-agnostic agent skills for Lista Lending — daily DeFi workflows on BSC",
+  "agentsDir": ".agents",
   "skills": [
     {
       "command": "lista-health",
