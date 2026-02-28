@@ -2,18 +2,18 @@
 'use strict';
 
 /**
- * moolah.js — Moolah protocol RPC tool (BSC Mainnet)
+ * moolah.js — Moolah protocol RPC tool (BSC + ETH Mainnet)
  * No external dependencies required — uses Node.js stdlib only.
  *
  * Usage:
- *   node moolah.js position    <marketId> <userAddr>
- *   node moolah.js market      <marketId>
- *   node moolah.js params      <marketId>
- *   node moolah.js oracle-price <marketId>
- *   node moolah.js user-positions <userAddr>
+ *   node moolah.js [--chain bsc|eth] position      <marketId> <userAddr>
+ *   node moolah.js [--chain bsc|eth] market        <marketId>
+ *   node moolah.js [--chain bsc|eth] params        <marketId>
+ *   node moolah.js [--chain bsc|eth] oracle-price  <marketId>
+ *   node moolah.js [--chain bsc]     user-positions <userAddr>
  *
- * All output is JSON on stdout.
- * Errors go to stderr with exit code 1.
+ * Default chain: bsc
+ * All output is JSON on stdout. Errors go to stderr with exit code 1.
  *
  * Selectors (keccak256 of ABI signature, first 4 bytes).
  * Verify with: cast sig "functionName(types)"  [foundry]
@@ -22,11 +22,27 @@
 const https  = require('https');
 const http   = require('http');
 
-// ── Config ──────────────────────────────────────────────────────────────────
+// ── Chain config ─────────────────────────────────────────────────────────────
 
-const MOOLAH  = '0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C';
-const RPC_URL = 'https://bsc-dataseed.bnbchain.org';
+const CHAINS = {
+  bsc: {
+    moolah: '0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C',
+    rpc:    'https://bsc-dataseed.bnbchain.org',
+    name:   'BSC Mainnet',
+    chainId: 56,
+  },
+  eth: {
+    moolah: '0xf820fB4680712CD7263a0D3D024D5b5aEA82Fd70',
+    rpc:    'https://eth.drpc.org',
+    name:   'Ethereum Mainnet',
+    chainId: 1,
+  },
+};
+
 const API_URL = 'https://api.lista.org/api/moolah';
+
+// Resolved at startup from --chain flag (default: bsc)
+let chain;
 
 // keccak256(sig).slice(0,4) — verified against deployed contract ABI
 const SEL = {
@@ -99,15 +115,22 @@ function request(url, opts = {}, body = null) {
 
 let _callId = 1;
 
-/** Make an eth_call to the BSC RPC. Returns the raw hex result (no 0x prefix). */
-async function ethCall(to, calldata) {
+/**
+ * Make an eth_call to the active chain's RPC.
+ * @param {string} to       - Contract address
+ * @param {string} calldata - Hex calldata (no 0x prefix)
+ * @param {string} [rpcUrl] - Override RPC URL (defaults to chain.rpc)
+ * Returns the raw hex result (no 0x prefix).
+ */
+async function ethCall(to, calldata, rpcUrl) {
+  const url  = rpcUrl || chain.rpc;
   const body = JSON.stringify({
     jsonrpc: '2.0',
     method:  'eth_call',
     params:  [{ to, data: '0x' + calldata }, 'latest'],
     id:      _callId++,
   });
-  const resp = await request(RPC_URL, {
+  const resp = await request(url, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
   }, body);
@@ -131,7 +154,7 @@ async function apiGet(path) {
 async function cmdPosition(marketId, userAddr) {
   if (!marketId || !userAddr) throw new Error('Usage: position <marketId> <userAddr>');
   const calldata = SEL.position + encBytes32(marketId) + encAddress(userAddr);
-  const raw = await ethCall(MOOLAH, calldata);
+  const raw = await ethCall(chain.moolah, calldata);
   if (!raw || raw.length < 192) throw new Error('Empty response — check marketId');
 
   const c = chunks(raw);
@@ -159,7 +182,7 @@ async function cmdPosition(marketId, userAddr) {
 async function cmdMarket(marketId) {
   if (!marketId) throw new Error('Usage: market <marketId>');
   const calldata = SEL.market + encBytes32(marketId);
-  const raw = await ethCall(MOOLAH, calldata);
+  const raw = await ethCall(chain.moolah, calldata);
   if (!raw || raw.length < 384) throw new Error('Empty response — check marketId');
 
   const c = chunks(raw);
@@ -198,8 +221,8 @@ async function cmdMarket(marketId) {
 async function cmdParams(marketId) {
   if (!marketId) throw new Error('Usage: params <marketId>');
   const calldata = SEL.idToMarketParams + encBytes32(marketId);
-  const raw = await ethCall(MOOLAH, calldata);
-  if (!raw || raw.length < 320) throw new Error('Empty response — check marketId or selector 0x64e0b1a0');
+  const raw = await ethCall(chain.moolah, calldata);
+  if (!raw || raw.length < 320) throw new Error(`Empty response — check marketId or selector 0x64e0b1a0 on ${chain.name}`);
 
   const c = chunks(raw);
   const lltv = decUint(c[4]);
@@ -309,29 +332,57 @@ async function cmdUserPositions(userAddr) {
 // ── CLI entry point ───────────────────────────────────────────────────────────
 
 const COMMANDS = {
-  position:       cmdPosition,
-  market:         cmdMarket,
-  params:         cmdParams,
-  'oracle-price': cmdOraclePrice,
+  position:         cmdPosition,
+  market:           cmdMarket,
+  params:           cmdParams,
+  'oracle-price':   cmdOraclePrice,
   'user-positions': cmdUserPositions,
 };
 
-const [,, cmd, ...args] = process.argv;
+const HELP = [
+  'Moolah RPC tool — BSC + ETH Mainnet',
+  '',
+  'Usage: node moolah.js [--chain bsc|eth] <command> [args]',
+  '',
+  '  position       <marketId> <userAddr>   User position in one market',
+  '  market         <marketId>              Market supply/borrow state',
+  '  params         <marketId>              Market params (oracle, lltv)',
+  '  oracle-price   <marketId>              Oracle price ratio (1e36 scale)',
+  '  user-positions <userAddr>              All active positions (BSC only — uses Lista API)',
+  '',
+  'Chains:',
+  '  --chain bsc   BSC Mainnet  — Moolah 0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C',
+  '  --chain eth   Ethereum     — Moolah 0xf820fB4680712CD7263a0D3D024D5b5aEA82Fd70',
+  '',
+  'Default: --chain bsc',
+  'Output: JSON on stdout. Errors on stderr.',
+].join('\n');
+
+// Parse --chain flag from argv, leaving remaining args for the command
+const rawArgs = process.argv.slice(2);
+let chainKey  = 'bsc';
+const cmdArgs = [];
+
+for (let i = 0; i < rawArgs.length; i++) {
+  if (rawArgs[i] === '--chain' && rawArgs[i + 1]) {
+    chainKey = rawArgs[++i].toLowerCase();
+  } else {
+    cmdArgs.push(rawArgs[i]);
+  }
+}
+
+if (!CHAINS[chainKey]) {
+  process.stderr.write(`Unknown chain "${chainKey}". Valid options: ${Object.keys(CHAINS).join(', ')}\n`);
+  process.exit(1);
+}
+
+// Set the active chain (used by ethCall and all cmd* functions)
+chain = CHAINS[chainKey];
+
+const [cmd, ...args] = cmdArgs;
 
 if (!cmd || !COMMANDS[cmd]) {
-  process.stderr.write([
-    'Moolah RPC tool — BSC Mainnet',
-    '',
-    'Usage: node moolah.js <command> [args]',
-    '',
-    '  position       <marketId> <userAddr>   User position in one market',
-    '  market         <marketId>              Market supply/borrow state',
-    '  params         <marketId>              Market params (oracle, lltv)',
-    '  oracle-price   <marketId>              Oracle price ratio (1e36 scale)',
-    '  user-positions <userAddr>              All active positions for a wallet',
-    '',
-    'Output: JSON on stdout. Errors on stderr.',
-  ].join('\n') + '\n');
+  process.stderr.write(HELP + '\n');
   process.exit(1);
 }
 
