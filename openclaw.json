@@ -1,0 +1,31 @@
+{
+  "name": "@lista-dao/lending-skills",
+  "version": "1.0.0",
+  "description": "Claude Code agent skills for Lista Lending — daily DeFi workflows on BSC",
+  "skills": [
+    {
+      "command": "lista-health",
+      "description": "Check your lending position health & liquidation risk for a wallet address"
+    },
+    {
+      "command": "lista-yield",
+      "description": "Scan best yield opportunities across all Lista Lending vaults"
+    },
+    {
+      "command": "lista-loop",
+      "description": "Calculate optimal leverage loop strategy & net APY for a given asset"
+    },
+    {
+      "command": "lista-market",
+      "description": "Daily protocol digest: total TVL, utilization, top vaults, high-rate markets"
+    },
+    {
+      "command": "lista-risk",
+      "description": "Protocol-wide risk monitor: near-liquidation positions, oracle health, liquidity crunch"
+    },
+    {
+      "command": "lista-vault-builder",
+      "description": "Curator tool: build a custom MoolahVault strategy with optimal market queue recommendations"
+    }
+  ]
+}
