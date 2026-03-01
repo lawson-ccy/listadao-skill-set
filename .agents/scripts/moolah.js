@@ -28,6 +28,7 @@ const CHAINS = {
   bsc: {
     moolah:     '0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C',
     multicall3: '0xcA11bde05977b3631167028862bE2a173976CA11',
+    oracle:     '0xf3afD82A4071f272F403dC176916141f44E6c750',
     rpc:        'https://bsc-dataseed.bnbchain.org',
     name:       'BSC Mainnet',
     chainId:    56,
@@ -35,6 +36,7 @@ const CHAINS = {
   eth: {
     moolah:     '0xf820fB4680712CD7263a0D3D024D5b5aEA82Fd70',
     multicall3: '0xcA11bde05977b3631167028862bE2a173976CA11',
+    oracle:     '0xA64FE284EB8279B9b63946DD51813b0116099301',
     rpc:        'https://eth.drpc.org',
     name:       'Ethereum Mainnet',
     chainId:    1,
@@ -52,6 +54,7 @@ const SEL = {
   market:           '5c60e39a', // market(bytes32)
   idToMarketParams: '2c3c9157', // idToMarketParams(bytes32)
   oraclePrice:      'a035b1fe', // price()  — Morpho oracle interface
+  peek:             'acefafae', // peek(address)  — Lista price oracle
 };
 
 // ── ABI encoding ─────────────────────────────────────────────────────────────
@@ -472,6 +475,35 @@ async function cmdUserPositions(userAddr) {
   };
 }
 
+/**
+ * token-price <tokenAddress>
+ * Queries the USD price of a token via the chain's Lista price oracle.
+ * Uses oracle.peek(address) — returns price with 18 decimal places.
+ *
+ * Token addresses can be obtained from:
+ *   - moolah.js params <marketId>  (loanToken / collateralToken fields)
+ *   - Lista API: /api/moolah/market/<marketId>  (loanToken / collateralToken)
+ */
+async function cmdTokenPrice(tokenAddr) {
+  if (!tokenAddr) throw new Error('Usage: token-price <tokenAddress>');
+  if (!chain.oracle) throw new Error(`No oracle configured for chain ${chain.name}`);
+
+  const calldata = SEL.peek + encAddress(tokenAddr);
+  const raw = await ethCall(chain.oracle, calldata);
+  if (!raw || raw.length < 64) throw new Error(`peek() failed on oracle ${chain.oracle}`);
+
+  const price = decUint(chunks(raw)[0]);
+
+  return {
+    token:       tokenAddr.toLowerCase(),
+    oracle:      chain.oracle,
+    chain:       chain.name,
+    priceRaw:    price.toString(),
+    priceUSD:    toHuman(price),           // 18 decimal places
+    note:        'price is 18-decimal USD; priceUSD = priceRaw / 1e18',
+  };
+}
+
 // ── CLI entry point ───────────────────────────────────────────────────────────
 
 const COMMANDS = {
@@ -479,6 +511,7 @@ const COMMANDS = {
   market:           cmdMarket,
   params:           cmdParams,
   'oracle-price':   cmdOraclePrice,
+  'token-price':    cmdTokenPrice,
   'user-positions': cmdUserPositions,
 };
 
@@ -490,12 +523,15 @@ const HELP = [
   '  position       <marketId> <userAddr>   User position in one market',
   '  market         <marketId>              Market supply/borrow state',
   '  params         <marketId>              Market params (oracle, lltv)',
-  '  oracle-price   <marketId>              Oracle price ratio (1e36 scale)',
+  '  oracle-price   <marketId>              Morpho oracle price ratio (1e36 scale)',
+  '  token-price    <tokenAddress>          USD price via Lista oracle (18dp)',
   '  user-positions <userAddr>              All active positions (BSC only — uses Lista API)',
   '',
   'Chains:',
   '  --chain bsc   BSC Mainnet  — Moolah 0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C',
+  '                               Oracle  0xf3afD82A4071f272F403dC176916141f44E6c750',
   '  --chain eth   Ethereum     — Moolah 0xf820fB4680712CD7263a0D3D024D5b5aEA82Fd70',
+  '                               Oracle  0xA64FE284EB8279B9b63946DD51813b0116099301',
   '',
   'Default: --chain bsc',
   'Output: JSON on stdout. Errors on stderr.',
