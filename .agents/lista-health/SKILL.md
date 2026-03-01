@@ -15,16 +15,16 @@ Given a wallet address, fetch all active positions from the Moolah contract, com
 node ../.agents/scripts/moolah.js user-positions <walletAddress>
 ```
 
-Returns JSON with `positions[]` — each entry has:
+Batches all market lookups into 2 RPC calls via Multicall3. Returns JSON with `positions[]` — each entry has:
 
 | Field | Description |
 |---|---|
 | `marketId` | 32-byte market ID |
 | `collateralSymbol` / `loanSymbol` | Token symbols |
-| `collateral` | Raw collateral (1e18 units) |
-| `borrowShares` | User borrow shares |
-| `currentDebt` | Current debt in loan token raw units |
-| `lastUpdateIso` | Last accrual timestamp |
+| `collateral` | Raw collateral in loan token units (1e18 for most tokens; BTCB and U are both 18 decimals on BSC) |
+| `borrowShares` | User borrow shares (raw) |
+| `currentDebt` | Current debt in loan token raw units — **already computed by the script** as `borrowShares × totalBorrowAssets / totalBorrowShares` |
+| `lastUpdateIso` | Last interest accrual timestamp |
 
 If `positions` is empty → no active positions for this wallet.
 

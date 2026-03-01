@@ -26,16 +26,18 @@ const http   = require('http');
 
 const CHAINS = {
   bsc: {
-    moolah: '0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C',
-    rpc:    'https://bsc-dataseed.bnbchain.org',
-    name:   'BSC Mainnet',
-    chainId: 56,
+    moolah:     '0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C',
+    multicall3: '0xcA11bde05977b3631167028862bE2a173976CA11',
+    rpc:        'https://bsc-dataseed.bnbchain.org',
+    name:       'BSC Mainnet',
+    chainId:    56,
   },
   eth: {
-    moolah: '0xf820fB4680712CD7263a0D3D024D5b5aEA82Fd70',
-    rpc:    'https://eth.drpc.org',
-    name:   'Ethereum Mainnet',
-    chainId: 1,
+    moolah:     '0xf820fB4680712CD7263a0D3D024D5b5aEA82Fd70',
+    multicall3: '0xcA11bde05977b3631167028862bE2a173976CA11',
+    rpc:        'https://eth.drpc.org',
+    name:       'Ethereum Mainnet',
+    chainId:    1,
   },
 };
 
@@ -46,9 +48,9 @@ let chain;
 
 // keccak256(sig).slice(0,4) — verified against deployed contract ABI
 const SEL = {
-  position:         '6565bfb2', // position(bytes32,address)
-  market:           '985c8cfe', // market(bytes32)
-  idToMarketParams: '64e0b1a0', // idToMarketParams(bytes32)
+  position:         '93c52062', // position(bytes32,address)
+  market:           '5c60e39a', // market(bytes32)
+  idToMarketParams: '2c3c9157', // idToMarketParams(bytes32)
   oraclePrice:      'a035b1fe', // price()  — Morpho oracle interface
 };
 
@@ -94,6 +96,102 @@ function toHuman(bn, decimals = 18) {
   const int  = s.slice(0, s.length - decimals) || '0';
   const frac = s.slice(s.length - decimals).replace(/0+$/, '') || '0';
   return `${int}.${frac}`;
+}
+
+// ── Multicall3 helpers ────────────────────────────────────────────────────────
+
+/**
+ * Encode aggregate3((address,bool,bytes)[]) calldata for Multicall3.
+ * Implements Ethereum ABI encoding manually — no external deps.
+ *
+ * ABI layout for dynamic array of dynamic tuples:
+ *   [0x20]                    outer offset to array encoding
+ *   [N]                       array length  ← start of array encoding
+ *   [off_0]..[off_{N-1}]      element offsets, relative to byte after [N]
+ *   [elem_0]..[elem_{N-1}]    element data (each: addr | bool | 0x60 | cdLen | cd padded)
+ *
+ * @param {Array<{target:string, allowFailure:boolean, callData:string}>} calls
+ *   callData must be a hex string WITHOUT 0x prefix
+ * @returns {string} hex calldata (no 0x) for the aggregate3 call
+ */
+function encodeAggregate3(calls) {
+  const SEL_AGG3 = '82ad56cb'; // keccak256('aggregate3((address,bool,bytes)[])')
+  const N = calls.length;
+
+  // Build element encodings for each Call3 tuple (address target, bool allowFailure, bytes callData)
+  const elements = calls.map(c => {
+    const cd     = c.callData;               // hex, no 0x
+    const cdLen  = cd.length / 2;            // byte length of callData
+    const padLen = Math.ceil(cdLen / 32) * 32;
+    const padding = '00'.repeat(padLen - cdLen);
+    return (
+      encAddress(c.target)                              // address (32 bytes)
+      + (c.allowFailure ? '1' : '0').padStart(64, '0') // bool (32 bytes)
+      + pad32('60')                                     // bytes offset = 0x60 (96) from elem start
+      + pad32(cdLen.toString(16))                       // bytes length
+      + cd + padding                                    // bytes data, padded to 32-byte boundary
+    );
+  });
+
+  // Compute element offsets relative to the byte immediately after the [N] word
+  // (the head section = N * 32 bytes, followed by the tail/element data)
+  const offsets = [];
+  let off = N * 32;
+  for (const elem of elements) {
+    offsets.push(off);
+    off += elem.length / 2; // element size in bytes
+  }
+
+  // arrayData = [N] || [off_0..off_{N-1}] || [elem_0..elem_{N-1}]
+  const arrayData = (
+    pad32(N.toString(16))
+    + offsets.map(o => pad32(o.toString(16))).join('')
+    + elements.join('')
+  );
+
+  // params = [0x20] || arrayData  (outer offset 32 = start of arrayData)
+  return SEL_AGG3 + pad32('20') + arrayData;
+}
+
+/**
+ * Decode the raw return hex from Multicall3.aggregate3.
+ * Return type: Result[] where Result = (bool success, bytes returnData)
+ *
+ * ABI layout of Result[]:
+ *   [0x20]          outer offset (= 32, array starts at byte 32)
+ *   [N]             array length
+ *   [h_0..h_{N-1}]  element offsets, relative to byte 64 (start of head section)
+ *   per element: [bool][0x40 offset to bytes][bytes length][bytes data padded]
+ *
+ * @param {string} hex - raw RPC result (no 0x prefix)
+ * @returns {Array<{success:boolean, data:string}>}  data is hex (no 0x)
+ */
+function decodeAggregate3Result(hex) {
+  const c = chunks(hex);
+  // c[0] = 0x20 (outer offset — array encoding starts at byte 32)
+  // c[1] = N   (at byte 32)
+  // c[2..N+1]  = element offsets, relative to HEAD_BASE (byte 64 = byte after [N])
+  const N = Number(decUint(c[1]));
+  const HEAD_BASE = 64; // absolute byte where element offset table begins
+
+  const results = [];
+  for (let i = 0; i < N; i++) {
+    const elemOff  = Number(decUint(c[2 + i])); // bytes from HEAD_BASE to element start
+    const elemByte = HEAD_BASE + elemOff;        // absolute byte of element
+    const ec       = elemByte / 32;              // chunk index of element start
+
+    const success       = decUint(c[ec]) !== 0n;
+    const bytesRelOff   = Number(decUint(c[ec + 1])); // offset to bytes tail from element start (= 0x40)
+    const bytesLenByte  = elemByte + bytesRelOff;      // absolute byte of bytes length word
+    const blc           = bytesLenByte / 32;
+
+    const dataLen   = Number(decUint(c[blc]));
+    const dataStart = bytesLenByte + 32;               // bytes data starts after length word
+    const dataHex   = hex.slice(dataStart * 2, (dataStart + dataLen) * 2);
+
+    results.push({ success, data: dataHex });
+  }
+  return results;
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
@@ -222,7 +320,7 @@ async function cmdParams(marketId) {
   if (!marketId) throw new Error('Usage: params <marketId>');
   const calldata = SEL.idToMarketParams + encBytes32(marketId);
   const raw = await ethCall(chain.moolah, calldata);
-  if (!raw || raw.length < 320) throw new Error(`Empty response — check marketId or selector 0x64e0b1a0 on ${chain.name}`);
+  if (!raw || raw.length < 320) throw new Error(`Empty response — check marketId or selector 0x2c3c9157 on ${chain.name}`);
 
   const c = chunks(raw);
   const lltv = decUint(c[4]);
@@ -268,11 +366,16 @@ async function cmdOraclePrice(marketId) {
  * user-positions <userAddr>
  * Scans all markets (via Lista API) and returns markets where this user
  * has an active position (borrowShares > 0 or collateral > 0).
+ *
+ * Uses Multicall3 to batch all RPC calls:
+ *   - 1 call: aggregate3 with N position(marketId, user) lookups
+ *   - 1 call: aggregate3 with M market() lookups for active positions only
+ * Total: 2 RPC calls regardless of market count (vs 110+ sequential before).
  */
 async function cmdUserPositions(userAddr) {
   if (!userAddr) throw new Error('Usage: user-positions <userAddr>');
 
-  // 1. Collect all unique market IDs from vault allocations
+  // 1. Collect all unique market IDs from vault allocations (API calls, unchanged)
   const vaultData = await apiGet('/vault/list?pageSize=100');
   const vaults    = vaultData.list;
 
@@ -284,46 +387,86 @@ async function cmdUserPositions(userAddr) {
     }
   }
 
-  // 2. Check position in each market
+  const marketIds = [...markets.keys()];
+  if (marketIds.length === 0) {
+    return { user: userAddr.toLowerCase(), totalMarkets: 0, activePositions: 0, positions: [] };
+  }
+
+  // 2. Batch all position(marketId, user) calls in a single aggregate3 RPC call
+  const positionCalls = marketIds.map(id => ({
+    target:       chain.moolah,
+    allowFailure: true,
+    callData:     SEL.position + encBytes32(id) + encAddress(userAddr),
+  }));
+  const posRaw     = await ethCall(chain.multicall3, encodeAggregate3(positionCalls));
+  const posResults = decodeAggregate3Result(posRaw);
+
+  // 3. Identify active positions (borrowShares > 0 or collateral > 0)
+  const activeIdx = [];
+  for (let i = 0; i < posResults.length; i++) {
+    const { success, data } = posResults[i];
+    if (!success || data.length < 192) continue; // need 3 × 32-byte slots
+    const pc = chunks(data);
+    if (decUint(pc[1]) > 0n || decUint(pc[2]) > 0n) activeIdx.push(i);
+  }
+
+  if (activeIdx.length === 0) {
+    return { user: userAddr.toLowerCase(), totalMarkets: markets.size, activePositions: 0, positions: [] };
+  }
+
+  // 4. Batch market() calls for active markets only (second aggregate3 call)
+  const marketCalls = activeIdx.map(i => ({
+    target:       chain.moolah,
+    allowFailure: true,
+    callData:     SEL.market + encBytes32(marketIds[i]),
+  }));
+  const mktRaw     = await ethCall(chain.multicall3, encodeAggregate3(marketCalls));
+  const mktResults = decodeAggregate3Result(mktRaw);
+
+  // 5. Compute currentDebt and build output
   const positions = [];
-  for (const [marketId, info] of markets) {
-    let pos;
-    try {
-      pos = await cmdPosition(marketId, userAddr);
-    } catch {
-      continue; // skip unresponsive markets
-    }
-    if (!pos.hasPosition) continue;
+  for (let j = 0; j < activeIdx.length; j++) {
+    const i        = activeIdx[j];
+    const marketId = marketIds[i];
+    const info     = markets.get(marketId);
 
-    // 3. Fetch market state to compute current debt
-    let marketState = null;
-    try { marketState = await cmdMarket(marketId); } catch {}
+    const pc           = chunks(posResults[i].data);
+    const supplyShares = decUint(pc[0]);
+    const borrowShares = decUint(pc[1]);
+    const collateral   = decUint(pc[2]);
 
-    let currentDebt = '0';
-    if (marketState && BigInt(pos.borrowShares) > 0n) {
-      const borrowShares      = BigInt(pos.borrowShares);
-      const totalBorrowAssets = BigInt(marketState.totalBorrowAssets);
-      const totalBorrowShares = BigInt(marketState.totalBorrowShares);
-      if (totalBorrowShares > 0n)
+    let currentDebt  = '0';
+    let lastUpdate   = null;
+    let lastUpdateIso = null;
+
+    const { success: mOk, data: mData } = mktResults[j];
+    if (mOk && mData.length >= 384) { // need 6 × 32-byte slots
+      const mc            = chunks(mData);
+      const totalBorrowAssets = decUint(mc[2]);
+      const totalBorrowShares = decUint(mc[3]);
+      lastUpdate    = Number(decUint(mc[4]));
+      lastUpdateIso = new Date(lastUpdate * 1000).toISOString();
+      if (totalBorrowShares > 0n && borrowShares > 0n) {
         currentDebt = (borrowShares * totalBorrowAssets / totalBorrowShares).toString();
+      }
     }
 
     positions.push({
       marketId,
       collateralSymbol: info.collateralSymbol ?? '?',
       loanSymbol:       info.loanSymbol       ?? '?',
-      supplyShares:     pos.supplyShares,
-      borrowShares:     pos.borrowShares,
-      collateral:       pos.collateral,
+      supplyShares:     supplyShares.toString(),
+      borrowShares:     borrowShares.toString(),
+      collateral:       collateral.toString(),
       currentDebt,
-      lastUpdate:       marketState?.lastUpdate ?? null,
-      lastUpdateIso:    marketState?.lastUpdateIso ?? null,
+      lastUpdate,
+      lastUpdateIso,
     });
   }
 
   return {
-    user:       userAddr.toLowerCase(),
-    totalMarkets: markets.size,
+    user:            userAddr.toLowerCase(),
+    totalMarkets:    markets.size,
     activePositions: positions.length,
     positions,
   };
