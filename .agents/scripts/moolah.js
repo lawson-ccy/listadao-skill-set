@@ -478,7 +478,7 @@ async function cmdUserPositions(userAddr) {
 /**
  * token-price <tokenAddress>
  * Queries the USD price of a token via the chain's Lista price oracle.
- * Uses oracle.peek(address) — returns price with 18 decimal places.
+ * Uses oracle.peek(address) — returns price with 8 decimal places.
  *
  * Token addresses can be obtained from:
  *   - moolah.js params <marketId>  (loanToken / collateralToken fields)
@@ -499,8 +499,67 @@ async function cmdTokenPrice(tokenAddr) {
     oracle:      chain.oracle,
     chain:       chain.name,
     priceRaw:    price.toString(),
-    priceUSD:    toHuman(price),           // 18 decimal places
-    note:        'price is 18-decimal USD; priceUSD = priceRaw / 1e18',
+    priceUSD:    toHuman(price, 8),        // 8 decimal places
+    note:        'price is 8-decimal USD; priceUSD = priceRaw / 1e8',
+  };
+}
+
+/**
+ * lp-price <marketId>
+ * Computes the USD price of an LP token collateral in a Smart Lending market.
+ *
+ * Smart Lending markets use a Curve StableSwap LP as collateral.
+ * Calling oracle-price on these markets always reverts — use this instead.
+ *
+ * Steps:
+ *   1. Fetch smartCollateralConfig from Lista API (swapPool, token0 address)
+ *   2. Call get_virtual_price() on the Curve pool  → 1e18-scaled, LP value in coin0 units
+ *   3. Call oracle.peek(token0)                    → 8-decimal USD price of coin0
+ *   4. lpTokenPriceUSD = (virtualPrice / 1e18) × (coin0PriceRaw / 1e8)
+ */
+async function cmdLpPrice(marketId) {
+  if (!marketId) throw new Error('Usage: lp-price <marketId>');
+  if (!chain.oracle) throw new Error(`No oracle configured for chain ${chain.name}`);
+
+  // 1. Fetch Smart Lending config from Lista API
+  const mkt = await apiGet(`/market/${marketId}`);
+  const cfg  = mkt.smartCollateralConfig;
+  if (!cfg || !cfg.swapPool) {
+    throw new Error('Not a Smart Lending market — use token-price for ERC20 collateral');
+  }
+
+  const swapPool     = cfg.swapPool;
+  const token0       = cfg.token0;
+  const token0Symbol = cfg.token0Symbol || 'coin0';
+  const token1Symbol = cfg.token1Symbol || 'coin1';
+
+  // 2. get_virtual_price() on Curve pool — selector 0xbb7b8b80, no args
+  const vpRaw = await ethCall(swapPool, 'bb7b8b80');
+  if (!vpRaw || vpRaw.length < 64) throw new Error(`get_virtual_price() failed on ${swapPool}`);
+  const virtualPrice = decUint(chunks(vpRaw)[0]); // 1e18
+
+  // 3. peek(token0) on Lista oracle — 8 decimal places
+  const peekRaw = await ethCall(chain.oracle, SEL.peek + encAddress(token0));
+  if (!peekRaw || peekRaw.length < 64) throw new Error(`peek() failed for ${token0}`);
+  const coin0PriceRaw = decUint(chunks(peekRaw)[0]); // 8dp
+
+  // 4. LP token price in USD
+  const virtualPriceF   = Number(virtualPrice) / 1e18;
+  const coin0PriceUSD   = Number(coin0PriceRaw) / 1e8;
+  const lpTokenPriceUSD = virtualPriceF * coin0PriceUSD;
+
+  return {
+    marketId,
+    swapPool,
+    token0:           token0.toLowerCase(),
+    token0Symbol,
+    token1Symbol,
+    virtualPrice:     virtualPrice.toString(),
+    virtualPriceF:    virtualPriceF.toFixed(8),
+    coin0PriceRaw:    coin0PriceRaw.toString(),
+    coin0PriceUSD:    coin0PriceUSD.toFixed(4),
+    lpTokenPriceUSD:  lpTokenPriceUSD.toFixed(4),
+    note:             'lpTokenPriceUSD = (virtualPrice/1e18) × (coin0PriceRaw/1e8)',
   };
 }
 
@@ -512,6 +571,7 @@ const COMMANDS = {
   params:           cmdParams,
   'oracle-price':   cmdOraclePrice,
   'token-price':    cmdTokenPrice,
+  'lp-price':       cmdLpPrice,
   'user-positions': cmdUserPositions,
 };
 
@@ -524,7 +584,8 @@ const HELP = [
   '  market         <marketId>              Market supply/borrow state',
   '  params         <marketId>              Market params (oracle, lltv)',
   '  oracle-price   <marketId>              Morpho oracle price ratio (1e36 scale)',
-  '  token-price    <tokenAddress>          USD price via Lista oracle (18dp)',
+  '  token-price    <tokenAddress>          USD price via Lista oracle (8dp)',
+  '  lp-price       <marketId>             USD price of Smart Lending LP token collateral',
   '  user-positions <userAddr>              All active positions (BSC only — uses Lista API)',
   '',
   'Chains:',

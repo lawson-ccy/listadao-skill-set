@@ -1,6 +1,6 @@
 ---
 name: lista-report
-description: "Generates a bilingual (English / 中文) Moolah position report for one or more wallet addresses. Shows collateral, debt, net equity, LTV, liquidation price, and tailored strategy recommendations per position. Ask for language before running. Use when the user provides addresses and asks for a position overview, portfolio summary, report, or strategy advice."
+description: "Generates a bilingual (English / 中文) Moolah position report for one or more wallet addresses. Shows collateral, debt, net equity, LTV, liquidation price, and tailored strategy recommendations per position. Handles both ERC20 and LP token collateral (Smart Lending markets). Ask for language before running. Use when the user provides addresses and asks for a position overview, portfolio summary, report, or strategy advice."
 ---
 
 # Lista Lending — Position Report
@@ -54,36 +54,79 @@ If `positions` is empty → the address has no active positions on Moolah.
 
 ---
 
-## Step 3 — Get oracle price and loan token USD price (per unique market)
+## Step 3 — Detect collateral type and fetch prices (per unique market)
 
-Deduplicate marketIds across all addresses. For each unique active marketId:
+Deduplicate marketIds across all addresses. For each unique active marketId, first fetch the market info from the Lista API — this tells you whether the collateral is a plain ERC20 token or a Curve LP token (Smart Lending market).
 
 ```bash
-# Oracle price (1e36-scaled). May revert for some oracle types — handle gracefully.
-node ../.agents/scripts/moolah.js oracle-price <marketId>
-# Returns: { price, lltv, lltvPct }
-
-# Loan token USD price from Lista API
 curl -s "https://api.lista.org/api/moolah/market/<marketId>" \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data']['loanTokenPrice'])"
+  | python3 -c "
+import sys, json
+d = json.load(sys.stdin)['data']
+cfg = d.get('smartCollateralConfig') or {}
+print('LP' if cfg.get('swapPool') else 'ERC20')
+print(d.get('loanTokenPrice', ''))
+"
 ```
 
-If `oracle-price` reverts or fails, mark collateral USD value as `N/A` and omit USD-dependent rows (collateral USD, net equity, liquidation price, buffer).
+Output line 1: `ERC20` or `LP`
+Output line 2: loan token USD price (float, e.g. `1.00005`)
+
+---
+
+### 3a — ERC20 collateral
+
+```bash
+# Oracle price (1e36-scaled). May revert for some oracles — handle gracefully.
+node ../.agents/scripts/moolah.js oracle-price <marketId>
+# Returns: { price (1e36-scaled), lltv, lltvPct }
+```
+
+If `oracle-price` reverts → mark collateral USD and all USD-derived fields as `N/A`.
+
+---
+
+### 3b — LP collateral (Smart Lending markets)
+
+Smart Lending markets use a Curve StableSwap LP token as collateral.
+Calling `oracle-price` on these markets **always reverts** — the provider contract is not a standard Morpho oracle. Use `lp-price` instead:
+
+```bash
+node ../.agents/scripts/moolah.js lp-price <marketId>
+# Returns: { lpTokenPriceUSD, token0Symbol, token1Symbol, virtualPriceF, coin0PriceUSD }
+```
+
+This command internally:
+1. Reads `smartCollateralConfig.swapPool` and `token0` from the Lista API
+2. Calls `get_virtual_price()` on the Curve pool (1e18-scaled, LP value in coin0 units)
+3. Calls `oracle.peek(token0)` for the coin0 USD price (8 decimal places)
+4. Returns `lpTokenPriceUSD = (virtualPrice / 1e18) × (coin0PriceRaw / 1e8)`
+
+Also fetch LLTV for LP markets (oracle-price is unavailable to provide it):
+
+```bash
+node ../.agents/scripts/moolah.js params <marketId>
+# Returns: { lltv, lltvPct, ... }
+```
+
+In the report, label the collateral as `<token0Symbol>/<token1Symbol> LP` (e.g. `slisBNB/BNB LP`).
 
 ---
 
 ## Step 4 — Compute metrics per position
 
-All raw values are 1e18 integers. Use floating point for display only.
+All raw position values are 1e18 integers. Use floating point for display only.
+
+### 4a — ERC20 collateral (oracle-price succeeded)
 
 ```
 collateral_f       = collateral / 1e18
 currentDebt_f      = currentDebt / 1e18
-oraclePrice_f      = oraclePrice / 1e36              (from oracle-price result)
-loanTokenUSD       = loanTokenPrice                  (float, from API)
-lltvF              = lltv / 1e18                     (e.g. 0.86)
+oraclePrice_f      = oraclePrice / 1e36          (from oracle-price)
+loanTokenUSD       = loanTokenPrice              (float, from API step 3)
+lltvF              = lltv / 1e18                 (from oracle-price result)
 
-collateral_in_loan = collateral_f × oraclePrice_f    (in loan token units)
+collateral_in_loan = collateral_f × oraclePrice_f    (collateral in loan token units)
 collateralPriceUSD = oraclePrice_f × loanTokenUSD    (USD per 1 collateral token)
 collateralUSD      = collateral_f × collateralPriceUSD
 debtUSD            = currentDebt_f × loanTokenUSD
@@ -94,7 +137,25 @@ liqPriceUSD        = debtUSD / (collateral_f × lltvF)
 buffer             = (collateralPriceUSD − liqPriceUSD) / collateralPriceUSD
 ```
 
-**Risk level:**
+### 4b — LP collateral (Smart Lending markets)
+
+```
+collateral_f      = collateral / 1e18
+currentDebt_f     = currentDebt / 1e18
+lpTokenPriceUSD   = lpTokenPriceUSD             (from lp-price result)
+loanTokenUSD      = loanTokenPrice              (float, from API step 3)
+lltvF             = lltv / 1e18                 (from params result)
+
+collateralUSD     = collateral_f × lpTokenPriceUSD
+debtUSD           = currentDebt_f × loanTokenUSD
+netEquityUSD      = collateralUSD − debtUSD
+
+LTV               = debtUSD / collateralUSD      (USD-based, matches on-chain LTV closely)
+liqPriceUSD       = debtUSD / (collateral_f × lltvF)   (LP token price that triggers liquidation)
+buffer            = (lpTokenPriceUSD − liqPriceUSD) / lpTokenPriceUSD
+```
+
+**Risk level (both collateral types):**
 - 🟢 SAFE     — LTV / lltvF < 50%
 - 🟡 WARNING  — 50% ≤ LTV / lltvF < 75%
 - 🔴 DANGER   — LTV / lltvF ≥ 75%
@@ -161,6 +222,16 @@ Market: BTCB / U  🟢 SAFE
   Liq. price:     BTCB < $45,200  (8.2% buffer)
   Last accrual:   2026-03-01 03:12 UTC
 
+[LP collateral example:]
+Market: slisBNB/BNB LP / BNB  🟡 WARNING
+  Collateral:     120.00 slisBNB/BNB LP  (~$78,143)
+  Debt:           50.00 BNB  (~$34,550)
+  Net equity:                  ~$43,593
+  LP price:       $651.19/LP  (virtual price 1.000110 × slisBNB $651.12)
+  LTV:            44.2%  /  LLTV 86.0%
+  Liq. price:     LP < $484.05  (25.7% buffer)
+  Last accrual:   2026-03-01 03:12 UTC
+
 [If no active positions:]
   No active positions.
 
@@ -192,6 +263,16 @@ Lista Lending — 持倉報告
   淨資產：                      約 $20,229,012
   LTV：      47.1%  /  清算線 86.0%
   清算價格：  BTCB < $45,200  (緩衝 8.2%)
+  最後結算：  2026-03-01 03:12 UTC
+
+[LP 抵押品範例：]
+市場：slisBNB/BNB LP / BNB  🟡 警告
+  抵押品：    120.00 slisBNB/BNB LP  (約 $78,143)
+  負債：      50.00 BNB  (約 $34,550)
+  淨資產：                約 $43,593
+  LP 價格：   $651.19/LP  (虛擬價格 1.000110 × slisBNB $651.12)
+  LTV：      44.2%  /  清算線 86.0%
+  清算價格：  LP < $484.05  (緩衝 25.7%)
   最後結算：  2026-03-01 03:12 UTC
 
 [若無活躍持倉：]
