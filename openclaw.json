@@ -6,8 +6,8 @@
   "skillsDir": ".agents",
   "skills": [
     {
-      "command": "lista-health",
-      "description": "Check your lending position health & liquidation risk for a wallet address"
+      "command": "lista-report",
+      "description": "Generate a bilingual (EN/中文) position report across one or more wallet addresses on Moolah, with strategy recommendations"
     },
     {
       "command": "lista-yield",
@@ -20,18 +20,6 @@
     {
       "command": "lista-market",
       "description": "Daily protocol digest: total TVL, utilization, top vaults, high-rate markets"
-    },
-    {
-      "command": "lista-risk",
-      "description": "Protocol-wide risk monitor: near-liquidation positions, oracle health, liquidity crunch"
-    },
-    {
-      "command": "lista-vault-builder",
-      "description": "Curator tool: build a custom MoolahVault strategy with optimal market queue recommendations"
-    },
-    {
-      "command": "lista-report",
-      "description": "Generate a bilingual (EN/中文) position report across one or more wallet addresses on Moolah, with strategy recommendations"
     }
   ]
 }

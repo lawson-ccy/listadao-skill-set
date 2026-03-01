@@ -290,3 +290,17 @@ Lista Lending — 持倉報告
 
 資料來源：api.lista.org  |  BSC 主網
 ```
+
+---
+
+## After the report — offer lista-yield
+
+Once the report has been delivered to the user, ask:
+
+**English:**
+> Would you like me to scan for the best yield opportunities on Lista Lending right now? (runs /lista-yield)
+
+**中文：**
+> 需要我幫你掃描 Lista Lending 目前最佳的存款收益機會嗎？（執行 /lista-yield）
+
+If the user says yes, run `/lista-yield`.
