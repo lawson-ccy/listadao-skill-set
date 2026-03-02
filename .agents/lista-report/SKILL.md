@@ -218,14 +218,14 @@ Asset families:
 A position is **correlated** when collateral and loan belong to the same family. For LP collateral, check whether both LP component tokens AND the loan token are all in the same family (e.g. slisBNB/BNB LP + BNB loan → BNB family → correlated; slisBNB/BNB LP + USD1 loan → different families → not correlated).
 
 **Risk level — standard (uncorrelated pairs):**
-- 🟢 SAFE     — LTV / lltvF < 65%
-- 🟡 WARNING  — 65% ≤ LTV / lltvF < 85%
-- 🔴 DANGER   — LTV / lltvF ≥ 85%
+- 🟢 SAFE     — LTV / lltvF < 80%
+- 🟡 WARNING  — 80% ≤ LTV / lltvF < 90%
+- 🔴 DANGER   — LTV / lltvF ≥ 90%
 
 **Risk level — correlated pairs (adjusted):**
-- 🟢 SAFE     — LTV / lltvF < 85%
-- 🟡 WARNING  — 85% ≤ LTV / lltvF < 95%
-- 🔴 DANGER   — LTV / lltvF ≥ 95%
+- 🟢 SAFE     — LTV / lltvF < 92%
+- 🟡 WARNING  — 92% ≤ LTV / lltvF < 97%
+- 🔴 DANGER   — LTV / lltvF ≥ 97%
 
 For correlated positions, append "(相關對)" after the risk label in the position header (English: "(correlated)").
 
@@ -240,17 +240,17 @@ For correlated positions, append "(相關對)" after the risk label in the posit
 After computing metrics for each active position, generate 1–3 concise strategy suggestions tailored to the actual numbers. Use the rules below as triggers.
 
 **Risk reduction — uncorrelated positions:**
-- LTV/LLTV ≥ 85% (DANGER): Strongly recommend repaying debt or adding collateral immediately. Show exact amounts needed to reach 70% LTV/LLTV.
-- LTV/LLTV 65–85% (WARNING): Suggest partial repayment or collateral top-up. Show amounts needed to reach 60% LTV/LLTV.
-- Buffer < 15%: Flag that a small price drop could trigger liquidation; recommend increasing buffer.
+- LTV/LLTV ≥ 90% (DANGER): Strongly recommend repaying debt or adding collateral immediately. Show exact amounts needed to reach 75% LTV/LLTV.
+- LTV/LLTV 80–90% (WARNING): Suggest partial repayment or collateral top-up. Show amounts needed to reach 70% LTV/LLTV.
+- Buffer < 10%: Flag that a small price drop could trigger liquidation; recommend increasing buffer.
 
 **Risk reduction — correlated positions:**
-- LTV/LLTV ≥ 95% (DANGER): Even for correlated pairs, recommend immediate debt reduction — peg stability cannot be guaranteed at extreme leverage. Show amounts to reach 80% LTV/LLTV.
-- LTV/LLTV 85–95% (WARNING): Note that broad market moves do not affect this position significantly. The real risk is a depeg event (e.g. LST smart contract exploit, stablecoin depeg). Recommend monitoring the collateral/loan price ratio and setting an alert if the ratio moves more than 3%.
-- LTV/LLTV < 85% (SAFE for correlated): No action needed. Optionally suggest looping for yield.
+- LTV/LLTV ≥ 97% (DANGER): Even for correlated pairs, recommend immediate debt reduction — peg stability cannot be guaranteed at extreme leverage. Show amounts to reach 85% LTV/LLTV.
+- LTV/LLTV 92–97% (WARNING): Note that broad market moves do not affect this position significantly. The real risk is a depeg event (e.g. LST smart contract exploit, stablecoin depeg). Recommend monitoring the collateral/loan price ratio and setting an alert if the ratio moves more than 3%.
+- LTV/LLTV < 92% (SAFE for correlated): No action needed. Optionally suggest looping for yield.
 
 **Yield enhancement (low LTV):**
-- LTV/LLTV < 40% (uncorrelated) or < 70% (correlated): Collateral is under-utilized. Suggest borrowing more to deploy into Lista yield vaults (`/lista-yield`) or looping (`/lista-loop`).
+- LTV/LLTV < 50% (uncorrelated) or < 75% (correlated): Collateral is under-utilized. Suggest borrowing more to deploy into Lista yield vaults (`/lista-yield`) or looping (`/lista-loop`).
 - Supply-only position (no borrow): Mention that the user could borrow against their supply to amplify yield.
 
 **General:**
@@ -281,7 +281,8 @@ Recommendations for 0xAbCd…5678:
 **STRICT FORMAT RULES — follow exactly, no exceptions:**
 - Copy the template below character-for-character, including the separator lines (━━━ and ────).
 - Use the exact field labels shown (Collateral:, Debt:, Net equity:, LTV:, Liq. price:, Last accrual:). Do NOT rename, reorder, or omit any field.
-- Do NOT use bullet points (•, -, *) inside position blocks. Use the indented plain-text rows from the template.
+- Separate each position block from the next with a single `- - - - -` line.
+- Do NOT use bullet points (•, -) inside position block rows. Use the indented plain-text rows from the template.
 - Do NOT add extra sections, headings, or emoji that are not in the template.
 - Number each position sequentially within an address block (#1, #2, …). Replace the "Market:" label with the position number.
 - Plain text only — no markdown bold/italics. Intended for Telegram/Discord paste.
@@ -294,10 +295,10 @@ Note: In the templates below, ＄ (fullwidth dollar sign) represents the US doll
 ```
 Lista Lending — Position Report
 Generated: <YYYY-MM-DD HH:MM> UTC  |  BSC Mainnet
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Address 1: 0xAbCd…5678
-────────────────────────────────────────────────
+────────────────────────
 #1  BTCB / U  🟢 SAFE
   Collateral:     398.85 BTCB  (~＄38,250,000)
   Debt:           18,020,988.00 U  (~＄18,020,988)
@@ -306,7 +307,8 @@ Address 1: 0xAbCd…5678
   Liq. price:     BTCB < ＄45,200  (8.2% buffer)
   Last accrual:   2026-03-01 03:12 UTC
 
-[LP collateral example:]
+- - - - -
+
 #2  slisBNB/BNB LP / BNB  🟡 WARNING
   Collateral:     120.00 slisBNB/BNB LP  (~＄78,143)
   Debt:           50.00 BNB  (~＄34,550)
@@ -319,12 +321,12 @@ Address 1: 0xAbCd…5678
 [If no active positions:]
   No active positions.
 
-Address 1 summary: 1 active position  |  Net equity ~＄20.2M
+Address 1 summary: 2 active positions  |  Net equity ~＄20.2M
 
 Recommendations for Address 1:
   1. LTV is comfortable. Collateral is under-utilized — consider /lista-loop to amplify yield.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━
 [If multiple addresses, repeat the block above for each, then:]
 
 Total: <N> addresses  |  <M> active positions  |  Combined net equity ~＄X
@@ -337,10 +339,10 @@ Data: api.lista.org  |  BSC Mainnet
 ```
 Lista Lending — 持倉報告
 產生時間：<YYYY-MM-DD HH:MM> UTC  |  BSC 主網
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━
 
 地址 1：0xAbCd…5678
-────────────────────────────────────────────────
+────────────────────────
 #1  BTCB / U  🟢 安全
   抵押品：    398.85 BTCB  (約 ＄38,250,000)
   負債：      18,020,988.00 U  (約 ＄18,020,988)
@@ -349,7 +351,8 @@ Lista Lending — 持倉報告
   清算價格：  BTCB < ＄45,200  (緩衝 8.2%)
   最後結算：  2026-03-01 03:12 UTC
 
-[LP 抵押品範例：]
+- - - - -
+
 #2  slisBNB/BNB LP / BNB  🟡 警告
   抵押品：    120.00 slisBNB/BNB LP  (約 ＄78,143)
   負債：      50.00 BNB  (約 ＄34,550)
@@ -362,12 +365,12 @@ Lista Lending — 持倉報告
 [若無活躍持倉：]
   無活躍持倉。
 
-地址 1 小結：1 個活躍持倉  |  淨資產約 ＄20.2M
+地址 1 小結：2 個活躍持倉  |  淨資產約 ＄20.2M
 
 地址 1 的持倉建議：
   1. LTV 尚在安全範圍，抵押品尚有餘裕，可考慮使用 /lista-loop 提高槓桿收益。
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━
 [若有多個地址，重複以上區塊，最後加總：]
 
 總計：<N> 個地址  |  <M> 個活躍持倉  |  合計淨資產約 ＄X
