@@ -205,10 +205,29 @@ In the report, show `Collateral price: $X.XX/collateralSymbol` on a separate lin
 
 ---
 
-**Risk level (all collateral types):**
+**Correlated asset check — do this BEFORE assigning risk level:**
+
+When collateral and loan token are in the same asset family, both assets move together in price. Liquidation can only happen if the peg or ratio between them breaks — not from broad market moves. Apply more lenient risk thresholds for correlated pairs.
+
+Asset families:
+- USD stable: USD1, U, USDT, USDC, DAI, FDUSD, BUSD (any USD-pegged stablecoin)
+- BNB / BNB-LST: BNB, slisBNB, wstBNB, ankrBNB, BNBx
+- ETH / ETH-LST: ETH, WETH, wstETH, stETH, rETH
+- BTC: BTCB, WBTC, BTC
+
+A position is **correlated** when collateral and loan belong to the same family. For LP collateral, check whether both LP component tokens AND the loan token are all in the same family (e.g. slisBNB/BNB LP + BNB loan → BNB family → correlated; slisBNB/BNB LP + USD1 loan → different families → not correlated).
+
+**Risk level — standard (uncorrelated pairs):**
 - 🟢 SAFE     — LTV / lltvF < 65%
 - 🟡 WARNING  — 65% ≤ LTV / lltvF < 85%
 - 🔴 DANGER   — LTV / lltvF ≥ 85%
+
+**Risk level — correlated pairs (adjusted):**
+- 🟢 SAFE     — LTV / lltvF < 85%
+- 🟡 WARNING  — 85% ≤ LTV / lltvF < 95%
+- 🔴 DANGER   — LTV / lltvF ≥ 95%
+
+For correlated positions, append "(相關對)" after the risk label in the position header (English: "(correlated)").
 
 **Dust filter:** After computing collateralUSD and debtUSD for a position, if BOTH values are less than USD 1, skip the position entirely — do not include it in the report or count it in the position total.
 
@@ -220,13 +239,18 @@ In the report, show `Collateral price: $X.XX/collateralSymbol` on a separate lin
 
 After computing metrics for each active position, generate 1–3 concise strategy suggestions tailored to the actual numbers. Use the rules below as triggers.
 
-**Risk reduction (high LTV):**
-- LTV/LLTV ≥ 85% (DANGER): Strongly recommend repaying debt or adding collateral immediately. Show exact amounts needed to reach 70% LTV.
-- LTV/LLTV 65–85% (WARNING): Suggest partial repayment or collateral top-up to reach a safer LTV. Show target amounts.
+**Risk reduction — uncorrelated positions:**
+- LTV/LLTV ≥ 85% (DANGER): Strongly recommend repaying debt or adding collateral immediately. Show exact amounts needed to reach 70% LTV/LLTV.
+- LTV/LLTV 65–85% (WARNING): Suggest partial repayment or collateral top-up. Show amounts needed to reach 60% LTV/LLTV.
 - Buffer < 15%: Flag that a small price drop could trigger liquidation; recommend increasing buffer.
 
+**Risk reduction — correlated positions:**
+- LTV/LLTV ≥ 95% (DANGER): Even for correlated pairs, recommend immediate debt reduction — peg stability cannot be guaranteed at extreme leverage. Show amounts to reach 80% LTV/LLTV.
+- LTV/LLTV 85–95% (WARNING): Note that broad market moves do not affect this position significantly. The real risk is a depeg event (e.g. LST smart contract exploit, stablecoin depeg). Recommend monitoring the collateral/loan price ratio and setting an alert if the ratio moves more than 3%.
+- LTV/LLTV < 85% (SAFE for correlated): No action needed. Optionally suggest looping for yield.
+
 **Yield enhancement (low LTV):**
-- LTV/LLTV < 40%: Collateral is under-utilized. Suggest borrowing more against existing collateral to deploy into Lista yield vaults (`/lista-yield` for current rates), or looping (`/lista-loop`).
+- LTV/LLTV < 40% (uncorrelated) or < 70% (correlated): Collateral is under-utilized. Suggest borrowing more to deploy into Lista yield vaults (`/lista-yield`) or looping (`/lista-loop`).
 - Supply-only position (no borrow): Mention that the user could borrow against their supply to amplify yield.
 
 **General:**
