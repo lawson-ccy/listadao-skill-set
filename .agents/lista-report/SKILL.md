@@ -76,13 +76,33 @@ Output line 2: loan token USD price (float, e.g. `1.00005`)
 
 ### 3a — ERC20 collateral
 
+**Step 1: Try oracle-price**
+
 ```bash
 # Oracle price (1e36-scaled). May revert for some oracles — handle gracefully.
 node ../.agents/scripts/moolah.js oracle-price <marketId>
 # Returns: { price (1e36-scaled), lltv, lltvPct }
 ```
 
-If `oracle-price` reverts → mark collateral USD and all USD-derived fields as `N/A`.
+If `oracle-price` succeeds → use path **4a** for metric computation.
+
+**Step 2: Fallback to token-price (when oracle-price reverts)**
+
+When `oracle-price` reverts, do NOT mark as N/A. Instead, fetch the collateral token address from market params, then query the Lista oracle directly:
+
+```bash
+# Get collateral token address and LLTV from market params
+node ../.agents/scripts/moolah.js params <marketId>
+# Returns: { collateralToken, loanToken, lltv, lltvPct, ... }
+
+# Get USD price of collateral token via Lista oracle (8 decimal places)
+node ../.agents/scripts/moolah.js token-price <collateralToken>
+# Returns: { priceUSD }
+```
+
+If `token-price` returns 0 or errors → only then mark collateral USD and all USD-derived fields as `N/A`.
+
+Use path **4c** for metric computation when the token-price fallback is used.
 
 ---
 
@@ -117,7 +137,7 @@ In the report, label the collateral as `<token0Symbol>/<token1Symbol> LP` (e.g. 
 
 All raw position values are 1e18 integers. Use floating point for display only.
 
-### 4a — ERC20 collateral (oracle-price succeeded)
+### 4a — ERC20 collateral (oracle-price succeeded, path 4a)
 
 ```
 collateral_f       = collateral / 1e18
@@ -155,10 +175,34 @@ liqPriceUSD       = debtUSD / (collateral_f × lltvF)   (LP token price that tri
 buffer            = (lpTokenPriceUSD − liqPriceUSD) / lpTokenPriceUSD
 ```
 
-**Risk level (both collateral types):**
+### 4c — ERC20 collateral (oracle-price reverted, token-price fallback, path 4c)
+
+```
+collateral_f       = collateral / 1e18
+currentDebt_f      = currentDebt / 1e18
+collateralPriceUSD = priceUSD              (from token-price result, 8dp already divided)
+loanTokenUSD       = loanTokenPrice        (float, from API step 3)
+lltvF              = lltv / 1e18           (from params result)
+
+collateralUSD      = collateral_f × collateralPriceUSD
+debtUSD            = currentDebt_f × loanTokenUSD
+netEquityUSD       = collateralUSD − debtUSD
+
+LTV                = debtUSD / collateralUSD           (USD-based)
+liqPriceUSD        = debtUSD / (collateral_f × lltvF)  (collateral price that triggers liquidation)
+buffer             = (collateralPriceUSD − liqPriceUSD) / collateralPriceUSD
+```
+
+In the report, show `Collateral price: $X.XX/collateralSymbol` on a separate line (same position as the LP price line).
+
+---
+
+**Risk level (all collateral types):**
 - 🟢 SAFE     — LTV / lltvF < 50%
 - 🟡 WARNING  — 50% ≤ LTV / lltvF < 75%
 - 🔴 DANGER   — LTV / lltvF ≥ 75%
+
+**Dust filter:** After computing collateralUSD and debtUSD for a position, if BOTH values are less than $1, skip the position entirely — do not include it in the report or count it in the position total.
 
 **Supply-only position** (supplyShares > 0, borrowShares = 0): skip debt, LTV, and liquidation price rows.
 
