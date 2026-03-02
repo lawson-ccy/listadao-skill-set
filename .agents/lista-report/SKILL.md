@@ -198,9 +198,9 @@ In the report, show `Collateral price: $X.XX/collateralSymbol` on a separate lin
 ---
 
 **Risk level (all collateral types):**
-- 🟢 SAFE     — LTV / lltvF < 50%
-- 🟡 WARNING  — 50% ≤ LTV / lltvF < 75%
-- 🔴 DANGER   — LTV / lltvF ≥ 75%
+- 🟢 SAFE     — LTV / lltvF < 65%
+- 🟡 WARNING  — 65% ≤ LTV / lltvF < 85%
+- 🔴 DANGER   — LTV / lltvF ≥ 85%
 
 **Dust filter:** After computing collateralUSD and debtUSD for a position, if BOTH values are less than $1, skip the position entirely — do not include it in the report or count it in the position total.
 
@@ -213,12 +213,12 @@ In the report, show `Collateral price: $X.XX/collateralSymbol` on a separate lin
 After computing metrics for each active position, generate 1–3 concise strategy suggestions tailored to the actual numbers. Use the rules below as triggers.
 
 **Risk reduction (high LTV):**
-- LTV/LLTV ≥ 75% (DANGER): Strongly recommend repaying debt or adding collateral immediately. Show exact amounts needed to reach 60% LTV.
-- LTV/LLTV 50–75% (WARNING): Suggest partial repayment or collateral top-up to reach a safer LTV. Show target amounts.
+- LTV/LLTV ≥ 85% (DANGER): Strongly recommend repaying debt or adding collateral immediately. Show exact amounts needed to reach 70% LTV.
+- LTV/LLTV 65–85% (WARNING): Suggest partial repayment or collateral top-up to reach a safer LTV. Show target amounts.
 - Buffer < 15%: Flag that a small price drop could trigger liquidation; recommend increasing buffer.
 
 **Yield enhancement (low LTV):**
-- LTV/LLTV < 30%: Collateral is under-utilized. Suggest borrowing more against existing collateral to deploy into Lista yield vaults (`/lista-yield` for current rates), or looping (`/lista-loop`).
+- LTV/LLTV < 40%: Collateral is under-utilized. Suggest borrowing more against existing collateral to deploy into Lista yield vaults (`/lista-yield` for current rates), or looping (`/lista-loop`).
 - Supply-only position (no borrow): Mention that the user could borrow against their supply to amplify yield.
 
 **General:**
@@ -248,6 +248,7 @@ Recommendations for 0xAbCd…5678:
 
 Use plain text only — no markdown bold/italics. Intended for Telegram/Discord paste.
 Numbers: comma thousands separator, 2 decimal places for token amounts, rounded to nearest dollar for USD.
+Number each position sequentially within an address block (#1, #2, …). Replace the "Market:" label with the position number.
 
 ### English format
 
@@ -258,7 +259,7 @@ Generated: <YYYY-MM-DD HH:MM> UTC  |  BSC Mainnet
 
 Address 1: 0xAbCd…5678
 ────────────────────────────────────────────────
-Market: BTCB / U  🟢 SAFE
+#1  BTCB / U  🟢 SAFE
   Collateral:     398.85 BTCB  (~$38,250,000)
   Debt:           18,020,988.00 U  (~$18,020,988)
   Net equity:                       ~$20,229,012
@@ -267,7 +268,7 @@ Market: BTCB / U  🟢 SAFE
   Last accrual:   2026-03-01 03:12 UTC
 
 [LP collateral example:]
-Market: slisBNB/BNB LP / BNB  🟡 WARNING
+#2  slisBNB/BNB LP / BNB  🟡 WARNING
   Collateral:     120.00 slisBNB/BNB LP  (~$78,143)
   Debt:           50.00 BNB  (~$34,550)
   Net equity:                  ~$43,593
@@ -301,7 +302,7 @@ Lista Lending — 持倉報告
 
 地址 1：0xAbCd…5678
 ────────────────────────────────────────────────
-市場：BTCB / U  🟢 安全
+#1  BTCB / U  🟢 安全
   抵押品：    398.85 BTCB  (約 $38,250,000)
   負債：      18,020,988.00 U  (約 $18,020,988)
   淨資產：                      約 $20,229,012
@@ -310,7 +311,7 @@ Lista Lending — 持倉報告
   最後結算：  2026-03-01 03:12 UTC
 
 [LP 抵押品範例：]
-市場：slisBNB/BNB LP / BNB  🟡 警告
+#2  slisBNB/BNB LP / BNB  🟡 警告
   抵押品：    120.00 slisBNB/BNB LP  (約 $78,143)
   負債：      50.00 BNB  (約 $34,550)
   淨資產：                約 $43,593
