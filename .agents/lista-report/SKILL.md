@@ -210,7 +210,7 @@ In the report, show `Collateral price: $X.XX/collateralSymbol` on a separate lin
 - 🟡 WARNING  — 65% ≤ LTV / lltvF < 85%
 - 🔴 DANGER   — LTV / lltvF ≥ 85%
 
-**Dust filter:** After computing collateralUSD and debtUSD for a position, if BOTH values are less than \$1, skip the position entirely — do not include it in the report or count it in the position total.
+**Dust filter:** After computing collateralUSD and debtUSD for a position, if BOTH values are less than USD 1, skip the position entirely — do not include it in the report or count it in the position total.
 
 **Supply-only position** (supplyShares > 0, borrowShares = 0): skip debt, LTV, and liquidation price rows.
 
@@ -263,6 +263,8 @@ Recommendations for 0xAbCd…5678:
 - Plain text only — no markdown bold/italics. Intended for Telegram/Discord paste.
 - Numbers: comma thousands separator, 2 decimal places for token amounts, rounded to nearest dollar for USD.
 
+Note: In the templates below, ＄ (fullwidth dollar sign) represents the US dollar sign. Use the regular $ in your actual output.
+
 ### English format
 
 ```
@@ -273,27 +275,27 @@ Generated: <YYYY-MM-DD HH:MM> UTC  |  BSC Mainnet
 Address 1: 0xAbCd…5678
 ────────────────────────────────────────────────
 #1  BTCB / U  🟢 SAFE
-  Collateral:     398.85 BTCB  (~\$38,250,000)
-  Debt:           18,020,988.00 U  (~\$18,020,988)
-  Net equity:                       ~\$20,229,012
+  Collateral:     398.85 BTCB  (~＄38,250,000)
+  Debt:           18,020,988.00 U  (~＄18,020,988)
+  Net equity:                       ~＄20,229,012
   LTV:            47.1%  /  LLTV 86.0%
-  Liq. price:     BTCB < \$45,200  (8.2% buffer)
+  Liq. price:     BTCB < ＄45,200  (8.2% buffer)
   Last accrual:   2026-03-01 03:12 UTC
 
 [LP collateral example:]
 #2  slisBNB/BNB LP / BNB  🟡 WARNING
-  Collateral:     120.00 slisBNB/BNB LP  (~\$78,143)
-  Debt:           50.00 BNB  (~\$34,550)
-  Net equity:                  ~\$43,593
-  LP price:       \$651.19/LP  (virtual price 1.000110 × slisBNB \$651.12)
+  Collateral:     120.00 slisBNB/BNB LP  (~＄78,143)
+  Debt:           50.00 BNB  (~＄34,550)
+  Net equity:                  ~＄43,593
+  LP price:       ＄651.19/LP  (virtual price 1.000110 × slisBNB ＄651.12)
   LTV:            44.2%  /  LLTV 86.0%
-  Liq. price:     LP < \$484.05  (25.7% buffer)
+  Liq. price:     LP < ＄484.05  (25.7% buffer)
   Last accrual:   2026-03-01 03:12 UTC
 
 [If no active positions:]
   No active positions.
 
-Address 1 summary: 1 active position  |  Net equity ~\$20.2M
+Address 1 summary: 1 active position  |  Net equity ~＄20.2M
 
 Recommendations for Address 1:
   1. LTV is comfortable. Collateral is under-utilized — consider /lista-loop to amplify yield.
@@ -301,7 +303,7 @@ Recommendations for Address 1:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [If multiple addresses, repeat the block above for each, then:]
 
-Total: <N> addresses  |  <M> active positions  |  Combined net equity ~\$X
+Total: <N> addresses  |  <M> active positions  |  Combined net equity ~＄X
 
 Data: api.lista.org  |  BSC Mainnet
 ```
@@ -316,27 +318,27 @@ Lista Lending — 持倉報告
 地址 1：0xAbCd…5678
 ────────────────────────────────────────────────
 #1  BTCB / U  🟢 安全
-  抵押品：    398.85 BTCB  (約 \$38,250,000)
-  負債：      18,020,988.00 U  (約 \$18,020,988)
-  淨資產：                      約 \$20,229,012
+  抵押品：    398.85 BTCB  (約 ＄38,250,000)
+  負債：      18,020,988.00 U  (約 ＄18,020,988)
+  淨資產：                      約 ＄20,229,012
   LTV：      47.1%  /  清算線 86.0%
-  清算價格：  BTCB < \$45,200  (緩衝 8.2%)
+  清算價格：  BTCB < ＄45,200  (緩衝 8.2%)
   最後結算：  2026-03-01 03:12 UTC
 
 [LP 抵押品範例：]
 #2  slisBNB/BNB LP / BNB  🟡 警告
-  抵押品：    120.00 slisBNB/BNB LP  (約 \$78,143)
-  負債：      50.00 BNB  (約 \$34,550)
-  淨資產：                約 \$43,593
-  LP 價格：   \$651.19/LP  (虛擬價格 1.000110 × slisBNB \$651.12)
+  抵押品：    120.00 slisBNB/BNB LP  (約 ＄78,143)
+  負債：      50.00 BNB  (約 ＄34,550)
+  淨資產：                約 ＄43,593
+  LP 價格：   ＄651.19/LP  (虛擬價格 1.000110 × slisBNB ＄651.12)
   LTV：      44.2%  /  清算線 86.0%
-  清算價格：  LP < \$484.05  (緩衝 25.7%)
+  清算價格：  LP < ＄484.05  (緩衝 25.7%)
   最後結算：  2026-03-01 03:12 UTC
 
 [若無活躍持倉：]
   無活躍持倉。
 
-地址 1 小結：1 個活躍持倉  |  淨資產約 \$20.2M
+地址 1 小結：1 個活躍持倉  |  淨資產約 ＄20.2M
 
 地址 1 的持倉建議：
   1. LTV 尚在安全範圍，抵押品尚有餘裕，可考慮使用 /lista-loop 提高槓桿收益。
@@ -344,7 +346,7 @@ Lista Lending — 持倉報告
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [若有多個地址，重複以上區塊，最後加總：]
 
-總計：<N> 個地址  |  <M> 個活躍持倉  |  合計淨資產約 \$X
+總計：<N> 個地址  |  <M> 個活躍持倉  |  合計淨資產約 ＄X
 
 資料來源：api.lista.org  |  BSC 主網
 ```
