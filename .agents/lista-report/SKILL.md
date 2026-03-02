@@ -246,9 +246,14 @@ Recommendations for 0xAbCd…5678:
 
 ## Step 6 — Generate report
 
-Use plain text only — no markdown bold/italics. Intended for Telegram/Discord paste.
-Numbers: comma thousands separator, 2 decimal places for token amounts, rounded to nearest dollar for USD.
-Number each position sequentially within an address block (#1, #2, …). Replace the "Market:" label with the position number.
+**STRICT FORMAT RULES — follow exactly, no exceptions:**
+- Copy the template below character-for-character, including the separator lines (━━━ and ────).
+- Use the exact field labels shown (Collateral:, Debt:, Net equity:, LTV:, Liq. price:, Last accrual:). Do NOT rename, reorder, or omit any field.
+- Do NOT use bullet points (•, -, *) inside position blocks. Use the indented plain-text rows from the template.
+- Do NOT add extra sections, headings, or emoji that are not in the template.
+- Number each position sequentially within an address block (#1, #2, …). Replace the "Market:" label with the position number.
+- Plain text only — no markdown bold/italics. Intended for Telegram/Discord paste.
+- Numbers: comma thousands separator, 2 decimal places for token amounts, rounded to nearest dollar for USD.
 
 ### English format
 
