@@ -8,23 +8,20 @@ Skills live in `.agents/` and are shared across all supported AI coding tools vi
 
 | Command | Description |
 |---|---|
-| `/lista-health <wallet>` | Check your lending position health & liquidation risk |
+| `/lista-report <wallet(s)>` | Bilingual position report across one or more wallets: collateral, debt, LTV, liquidation price, and strategy recommendations |
 | `/lista-yield [asset]` | Scan best yield opportunities across all Lista vaults |
 | `/lista-loop <asset> <amount> [loops]` | Calculate optimal leverage loop strategy & net APY |
 | `/lista-market` | Daily protocol digest: TVL, utilization, top vaults |
-| `/lista-risk [wallet]` | Protocol-wide risk monitor: near-liquidation, oracle health |
-| `/lista-vault-builder [token] [risk]` | Build a custom MoolahVault strategy with market queue recommendations |
 
 ## Repository Structure
 
 ```
 .agents/               # Canonical skill files (LLM-agnostic)
-├── lista-health.md
-├── lista-loop.md
-├── lista-market.md
-├── lista-risk.md
-├── lista-vault-builder.md
-└── lista-yield.md
+├── lista-loop/
+├── lista-market/
+├── lista-report/
+├── lista-yield/
+└── scripts/           # Shared Node.js RPC helpers (moolah.js)
 
 .claude/commands       → symlink → ../.agents   (Claude Code)
 .codex                 → symlink → .agents       (OpenAI Codex)
@@ -61,16 +58,13 @@ cp .agents/*.md ~/.gemini/
 ## Usage Examples
 
 ```
-/lista-health 0xYourWalletAddress
+/lista-report 0xYourWalletAddress
+/lista-report 0xWallet1 0xWallet2
 /lista-yield BNB
 /lista-yield USD1
 /lista-loop slisBNB BNB 10
 /lista-loop BTCB BNB 0.5 3
 /lista-market
-/lista-risk
-/lista-risk 0xYourWalletAddress
-/lista-vault-builder WBNB balanced
-/lista-vault-builder USD1 conservative
 ```
 
 ## How It Works

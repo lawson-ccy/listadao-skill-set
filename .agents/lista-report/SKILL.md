@@ -17,8 +17,16 @@ Do NOT run any commands until the user has answered this question:
 
 > Which language should I use for the report?
 > 請問報告以哪種語言生成？
->   A) English
->   B) 中文（繁體）
+>   1) English
+>   2) 简体中文
+>   3) 繁體中文
+>   4) Other (specify)
+
+**Language handling rules:**
+- **1 / English** — use the English format template exactly.
+- **2 / 简体中文** — use the 繁體中文 format template, then convert all Traditional Chinese characters to Simplified Chinese. Do NOT alter any numbers, symbols, separators (━━━, ────), or field layout.
+- **3 / 繁體中文** — use the 繁體中文 format template exactly.
+- **4 / Other** — translate all label text (field names, headers, summary lines, recommendations) into the requested language. Keep every separator line, number format, indentation, and the #N position header format identical to the English template. Do NOT add bullet points or reformat the rows.
 
 Remember the answer and use it for all output generated below.
 
