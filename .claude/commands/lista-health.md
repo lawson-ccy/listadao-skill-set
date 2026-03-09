@@ -1,1 +1,0 @@
-../../.agents/lista-health/SKILL.md

@@ -1,19 +1,13 @@
 {
   "name": "@lista-dao/lending-skills",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "LLM-agnostic agent skills for Lista Lending — daily DeFi workflows on BSC",
-  "keywords": ["lista", "lending", "defi", "bnb", "moolah", "claude", "codex", "gemini", "openclaw", "agents"],
+  "keywords": ["lista", "lending", "defi", "bnb", "moolah", "claude", "codex", "skills", "agent-skills"],
   "license": "MIT",
-  "bin": {
-    "lista-skills": "./bin/install.js"
-  },
   "files": [
-    "bin",
-    ".agents",
-    ".claude/commands",
-    ".codex",
-    ".gemini",
-    "openclaw.json",
-    "docs"
+    "skills",
+    "docs",
+    "abis",
+    "openclaw.json"
   ]
 }
