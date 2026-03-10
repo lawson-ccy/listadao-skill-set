@@ -1,6 +1,18 @@
 # Lista Lending Agent Skills
 
-LLM-agnostic agent skills for [Lista Lending](https://lista.org/lending) — daily DeFi workflows on BSC, powered by live on-chain data via MCP.
+Agent skills for [Lista Lending](https://lista.org/lending) — daily DeFi workflows on BSC and Etheruem, powered by live on-chain data.
+
+## What this is
+
+A set of agent skills (slash commands) that give any LLM tool a full DeFi analyst for Lista Lending. Connect the MCP server once, install the skill, and your agent can answer questions about your positions, markets, and yield opportunities using live on-chain data — no custom backend required.
+
+Coverage:
+- **Position Report** — collateral, debt, health factor, LTV, liquidation price, recommendations
+- **Market Overview** — TVL, lending rates, top vaults, high-utilization markets
+- **Yield Opportunities** — best deposit APY across vaults
+- **Risk Check** — liquidation risk alerts with configurable thresholds
+- **Daily Digest** — positions + yield + market snapshot in one report
+- **Loop Strategy** — leverage loop simulation, net APY, liquidation risk
 
 ## Skills
 
@@ -8,99 +20,46 @@ LLM-agnostic agent skills for [Lista Lending](https://lista.org/lending) — dai
 |---|---|
 | `/lista` | Lista Lending assistant: position report, market overview, yield scan, risk check, daily digest, loop strategy |
 
-### Functions
-
-| # | Report | Wallet required |
-|---|---|---|
-| 1 | Position Report — collateral, debt, health factor, LTV, liquidation price, recommendations | Yes |
-| 2 | Market Overview — TVL, lending rates, top vaults, high-utilization markets | No |
-| 3 | Yield Opportunities — best deposit APY across vaults | No |
-| 4 | Risk Check — liquidation risk alerts with configurable thresholds | Yes |
-| 5 | Daily Digest — positions + yield + market snapshot in one report | Yes |
-| 6 | Loop Strategy — leverage loop simulation, net APY, liquidation risk | No |
-
-## Repository Structure
-
-```
-.agents/
-└── lista/
-    ├── SKILL.md              # Orchestrator: language, format rules, menu, dispatch
-    ├── references/
-    │   ├── domain.md         # Shared: price resolution, metrics, correlated pairs, risk levels
-    │   ├── position.md       # Report 1: position report templates (EN + 中文)
-    │   ├── market.md         # Report 2: market overview templates
-    │   ├── yield.md          # Report 3: yield opportunities templates
-    │   ├── risk.md           # Report 4: risk check templates + push setup
-    │   ├── digest.md         # Report 5: daily digest templates + subscription
-    │   └── loop.md           # Report 6: loop strategy simulation + templates
-    └── scripts/
-        └── moolah.js         # Node.js RPC helper (fallback only, no external deps)
-```
-
+---
 
 ## Setup
 
-### 1. Connect the Lista MCP server
-
-Skills fetch live data via MCP (Model Context Protocol). Add the Lista MCP server to your LLM tool:
-
-**Claude Code** — run once:
-```bash
-claude mcp add lista --transport sse https://mcp.lista.org/mcp
-```
-
-**OpenClaw** — add to `openclaw.json`:
-```json
-{
-  "mcpServers": {
-    "lista": {
-      "transport": "streamable-http",
-      "url": "https://mcp.lista.org/mcp"
-    }
-  }
-}
-```
-
-**Cursor / other MCP clients** — add to your MCP config file:
-```json
-{
-  "mcpServers": {
-    "lista": {
-      "url": "https://mcp.lista.org/mcp"
-    }
-  }
-}
-```
-
-> Replace the URL above with the production endpoint if provided by Lista.
-
-### 2. Install skills
+### 1. Install skills
 
 #### Via npx skills (recommended)
 
 ```bash
 # Install all skills
-npx skills add lista-dao/skills
+npx skills add lista-dao/lista-skills
 
 # Install specific skills only
-npx skills add lista-dao/skills --skill lista
+npx skills add lista-dao/lista-skills --skill lista
 
 # List available skills first
-npx skills add lista-dao/skills --list
+npx skills add lista-dao/lista-skills --list
 
 # Install globally (available across all projects)
-npx skills add lista-dao/skills -g
+npx skills add lista-dao/lista-skills -g
 ```
 
-Supports: Claude Code, Codex, Cursor, OpenCode, Gemini CLI, and 30+ more agents.
+Supports: Codex, Cursor, OpenCode, Gemini CLI, and 30+ more agents.
 
 #### Via add-skill (alternative)
 
 ```bash
-npx add-skill lista-dao/skills
+npx add-skill lista-dao/lista-skills
 ```
 
-## Usage Examples
+### 2. Connect the Lista MCP server (optional)
+
+Skills work out of the box via the Lista REST API. For richer live data, connect the MCP server to your LLM tool:
+
+- Streamable HTTP: `https://mcp.lista.org/mcp`
+- SSE: `https://mcp.lista.org/sse`
+
+---
+
+## Usage
 
 ```
 /lista 0xYourWalletAddress          # position report (default)
@@ -120,14 +79,9 @@ Each skill is a plain markdown prompt file. The LLM loads the relevant skill and
 4. **`lista_get_oracle_price`** — token and LP price (ERC20, LST, Smart Lending LP)
 5. **`lista_get_staking_info`** — slisBNB / BNB-LST native staking yield
 
-No backend infrastructure required. `moolah.js` is available as a last-resort fallback for direct RPC access when MCP is unavailable.
+No backend infrastructure required. When MCP is unavailable, skills fall back to `skills/lista/scripts/moolah.js` — a self-contained Node.js script (no `npm install`) that hits the Lista REST API directly.
 
 SKILL.md uses progressive disclosure: it's a compact orchestrator that dispatches to reference files in `references/` on demand, so the LLM only loads what it needs for the selected report type.
-
-## Data Sources
-
-- **Lista MCP:** `lista_get_position`, `lista_get_borrow_markets`, `lista_get_lending_vaults`, `lista_get_oracle_price`, `lista_get_staking_info`
-- **BSC RPC (fallback):** `https://bsc-dataseed.bnbchain.org` via `moolah.js`
 
 ## About Lista Lending
 
